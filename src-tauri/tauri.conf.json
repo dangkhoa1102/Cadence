@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Cadence",
+  "version": "0.1.0",
+  "identifier": "com.cadence.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Cadence",
+        "width": 1420,
+        "height": 1024,
+        "minWidth": 720,
+        "minHeight": 640,
+        "resizable": true,
+        "visible": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:cadence.db"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": false,
+    "publisher": "Cadence",
+    "copyright": "Cadence",
+    "category": "Productivity",
+    "shortDescription": "Daily reminders that reset every day",
+    "longDescription": "Cadence keeps the tasks you repeat every day: tick them off, set priorities, pick weekdays and times, and count down limited-day routines. Runs from the Windows system tray and starts with your PC.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

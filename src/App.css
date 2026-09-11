@@ -1,0 +1,628 @@
+:root {
+  --ink: #2b3532;
+  --muted: #6d7a76;
+  --bg-0: #f3f6f5;
+  --bg-1: #e7eeec;
+  --card: #fbfdfc;
+  --surface: #ffffff;
+  --surface-2: rgba(251, 253, 252, 0.88);
+  --line: rgba(62, 92, 84, 0.1);
+  --accent: #5e8b7e;
+  --accent-deep: #4d766b;
+  --accent-soft: #dceae4;
+  --accent-line: rgba(94, 139, 126, 0.3);
+  --on-accent: #ffffff;
+  --high: #b07a7a;
+  --high-soft: #f3e8e8;
+  --high-ink: #7a3b3b;
+  --high-line: rgba(176, 122, 122, 0.35);
+  --low: #8a9490;
+  --danger: #a35d5d;
+  --shadow: 0 10px 28px rgba(62, 92, 84, 0.06);
+  --glow: rgba(94, 139, 126, 0.12);
+  --overlay: rgba(43, 53, 50, 0.22);
+
+  color-scheme: light;
+  color: var(--ink);
+  background: var(--bg-0);
+  font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] {
+  --ink: #e3ebe8;
+  --muted: #94a4a0;
+  --bg-0: #161c1b;
+  --bg-1: #101615;
+  --card: #1d2523;
+  --surface: #242d2b;
+  --surface-2: rgba(36, 45, 43, 0.9);
+  --line: rgba(223, 238, 234, 0.1);
+  --accent: #6f9e8f;
+  --accent-deep: #a7cfc1;
+  --accent-soft: #26342f;
+  --accent-line: rgba(111, 158, 143, 0.4);
+  --on-accent: #101a18;
+  --high: #c68f8f;
+  --high-soft: #342727;
+  --high-ink: #e3b6b6;
+  --low: #7c8884;
+  --danger: #d59494;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  --glow: rgba(111, 158, 143, 0.16);
+  --overlay: rgba(6, 10, 9, 0.55);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at top right, var(--glow), transparent 32%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  color: var(--ink);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.app {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px 20px 96px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: Literata, "Be Vietnam Pro", serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.hero-tools {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.tabs button {
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button.on {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.subtabs {
+  width: fit-content;
+  margin: 0;
+}
+
+.icon-btn,
+.task-actions button,
+.sheet-actions button,
+.fab,
+.ghost {
+  border: 0;
+  cursor: pointer;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.progress-card,
+.task,
+.empty,
+.sheet {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.progress-card {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+}
+
+.alert-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--high-soft);
+  color: var(--high-ink);
+  border: 1px solid var(--high-line);
+}
+
+.alert-banner strong {
+  font-size: 15px;
+}
+
+.notice-banner {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 12px 14px 12px 18px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border: 1px solid var(--accent-line);
+}
+
+.notice-banner button {
+  border: 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--accent-deep);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.progress-card div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.progress-card strong {
+  font-family: Literata, "Be Vietnam Pro", serif;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.progress-card span,
+.progress-card p {
+  color: var(--muted);
+}
+
+.progress-card p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.meter {
+  height: 7px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #8fb5aa);
+  transition: width 180ms ease;
+}
+
+.banner {
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+
+.banner.error {
+  color: var(--danger);
+}
+
+.empty {
+  margin-top: 18px;
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.empty h2,
+.list h2,
+.sheet h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sheet h2 {
+  margin-bottom: 12px;
+  font-size: 21px;
+}
+
+.empty p,
+.sheet p,
+.hint,
+.switch-row small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.list.muted .task {
+  opacity: 0.72;
+}
+
+.task {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 16px;
+  border-left: 5px solid var(--accent);
+}
+
+.task.priority-2 {
+  border-left-color: var(--high);
+}
+
+.task.priority-1 {
+  border-left-color: var(--accent);
+}
+
+.task.priority-0 {
+  border-left-color: var(--low);
+}
+
+.task.done h3 {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.task p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.meta .time {
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+.meta .overdue {
+  font-weight: 600;
+  color: var(--high);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.priority-2 .badge {
+  background: var(--high-soft);
+  color: var(--high);
+}
+
+.check input {
+  position: absolute;
+  opacity: 0;
+}
+
+.check span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.check input:checked + span {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--card);
+}
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.task-actions button,
+.ghost {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.task-actions .danger,
+.sheet-actions .danger {
+  color: var(--danger);
+}
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--overlay);
+}
+
+.sheet {
+  width: min(100%, 660px);
+  max-height: min(88vh, 900px);
+  padding: 28px 32px;
+  overflow: auto;
+  border-radius: 24px;
+}
+
+.sheet label,
+.sheet fieldset {
+  display: block;
+  margin-top: 22px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sheet input[type="text"],
+.sheet input:not([type="checkbox"]):not([type="radio"]),
+.sheet textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 15px;
+  background: var(--surface);
+  color: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.sheet textarea {
+  min-height: 110px;
+}
+
+.sheet fieldset {
+  border: 0;
+  padding: 0;
+}
+
+.sheet legend {
+  margin-bottom: 8px;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.switch-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.switch-row strong,
+.switch-row small {
+  display: block;
+}
+
+.switch-row small {
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.field-hint {
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.weekday-row,
+.segmented {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.segmented button {
+  min-width: 96px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented button.on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.weekday {
+  min-width: 52px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekday.on {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.sheet-actions button {
+  padding: 12px 22px;
+  border-radius: 14px;
+  font-size: 15px;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.sheet-actions .ghost {
+  color: var(--muted);
+  background: transparent;
+}
+
+.history-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+}
+
+.details {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 0;
+}
+
+.details div {
+  display: grid;
+  gap: 2px;
+}
+
+.details dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.details dd {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.5;
+}
