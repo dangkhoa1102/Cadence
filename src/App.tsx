@@ -12,16 +12,29 @@ import {
 } from "./lib/date";
 import { t, type Lang } from "./lib/i18n";
 import {
+  addSpecialDay,
   archiveTask,
   createTask,
+  deleteSpecialDay,
   getTaskById,
   hasAnyActiveTasks,
+  listActiveTasks,
   listHistory,
+  listSpecialDays,
   listTodayTasks,
   restoreTask,
   setTaskCompleted,
   updateTask,
 } from "./lib/db";
+import {
+  monthGrid,
+  monthHasSpecialDay,
+  specialDayOn,
+  summarizeMonth,
+  tasksInMonth,
+  tasksOnDate,
+} from "./lib/calendar";
+import type { SpecialDay, SpecialDayDraft } from "./types";
 import {
   notifyCompleteResult,
   notifyRestored,
@@ -41,7 +54,7 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
-type MainTab = "today" | "history";
+type MainTab = "today" | "calendar" | "history";
 
 function describeError(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -68,13 +81,22 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [editor, setEditor] = useState<{ mode: "create" | "edit"; task?: Task } | null>(
-    null,
-  );
+  const [editor, setEditor] = useState<{
+    mode: "create" | "edit";
+    task?: Task;
+    presetDraft?: TaskDraft;
+  } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [hasOtherTasks, setHasOtherTasks] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [calendarTasks, setCalendarTasks] = useState<Task[]>([]);
+  const now = new Date();
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number | null>(null);
+  const [calendarDay, setCalendarDay] = useState<string | null>(null);
+  const [specialDays, setSpecialDays] = useState<SpecialDay[]>([]);
+  const [specialEditorDate, setSpecialEditorDate] = useState<string | null>(null);
 
   async function reloadToday(nextDate = todayLocal()) {
     setDate(nextDate);
@@ -87,6 +109,16 @@ export default function App() {
   async function reloadHistory(reason = historyFilter) {
     const rows = await listHistory(reason);
     setHistory(rows);
+    return rows;
+  }
+
+  async function reloadCalendar() {
+    const [rows, specials] = await Promise.all([
+      listActiveTasks(),
+      listSpecialDays(),
+    ]);
+    setCalendarTasks(rows);
+    setSpecialDays(specials);
     return rows;
   }
 
@@ -162,6 +194,12 @@ export default function App() {
     }
   }, [tab, historyFilter]);
 
+  useEffect(() => {
+    if (tab === "calendar") {
+      void reloadCalendar().catch((err) => setError(describeError(err)));
+    }
+  }, [tab]);
+
   const remaining = useMemo(
     () => tasks.filter((task) => !task.completed).length,
     [tasks],
@@ -199,6 +237,7 @@ export default function App() {
       setEditor(null);
       setError(null);
       await reloadToday(date);
+      if (tab === "calendar") await reloadCalendar();
 
       const showsToday = draft.weekdays[weekdayIndex(date)] === "1";
       setNotice(
@@ -216,6 +255,7 @@ export default function App() {
       await archiveTask(task.id, "user");
       setPendingDelete(null);
       await reloadToday(date);
+      if (tab === "calendar") await reloadCalendar();
       await notifyUserDeleted(task.title);
     } catch (err) {
       setError(describeError(err));
@@ -236,6 +276,25 @@ export default function App() {
   async function onShowDetail(task: Task) {
     const fresh = await getTaskById(task.id);
     setDetailTask(fresh ?? task);
+  }
+
+  async function onSaveSpecial(draft: SpecialDayDraft) {
+    try {
+      await addSpecialDay(draft);
+      setSpecialEditorDate(null);
+      await reloadCalendar();
+    } catch (err) {
+      setError(describeError(err));
+    }
+  }
+
+  async function onRemoveSpecial(id: number) {
+    try {
+      await deleteSpecialDay(id);
+      await reloadCalendar();
+    } catch (err) {
+      setError(describeError(err));
+    }
   }
 
   async function onAutostartChange(enabled: boolean) {
@@ -268,7 +327,15 @@ export default function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">{s.appName}</p>
-          <h1>{tab === "today" ? formatLongDate(date) : s.tabHistory}</h1>
+          <h1>
+            {tab === "today"
+              ? formatLongDate(date)
+              : tab === "calendar"
+                ? calendarMonth == null
+                  ? String(calendarYear)
+                  : `${s.months[calendarMonth - 1]} ${calendarYear}`
+                : s.tabHistory}
+          </h1>
         </div>
         <div className="hero-tools">
           <nav className="tabs" aria-label={s.navLabel}>
@@ -278,6 +345,13 @@ export default function App() {
               onClick={() => setTab("today")}
             >
               {s.tabToday}
+            </button>
+            <button
+              type="button"
+              className={tab === "calendar" ? "on" : ""}
+              onClick={() => setTab("calendar")}
+            >
+              {s.tabCalendar}
             </button>
             <button
               type="button"
@@ -382,6 +456,54 @@ export default function App() {
         </>
       )}
 
+      {tab === "calendar" && calendarMonth == null && (
+        <CalendarYearView
+          year={calendarYear}
+          tasks={calendarTasks}
+          specialDays={specialDays}
+          onPrevYear={() => setCalendarYear((y) => y - 1)}
+          onNextYear={() => setCalendarYear((y) => y + 1)}
+          onSelectMonth={(month) => setCalendarMonth(month)}
+        />
+      )}
+
+      {tab === "calendar" && calendarMonth != null && calendarDay == null && (
+        <CalendarMonthView
+          year={calendarYear}
+          month={calendarMonth}
+          tasks={calendarTasks}
+          specialDays={specialDays}
+          onBack={() => setCalendarMonth(null)}
+          onSelectDay={(date) => setCalendarDay(date)}
+          onEdit={(task) => setEditor({ mode: "edit", task })}
+          onDelete={(task) => setPendingDelete(task)}
+          onDetail={(task) => void onShowDetail(task)}
+        />
+      )}
+
+      {tab === "calendar" && calendarDay != null && (
+        <CalendarDayView
+          date={calendarDay}
+          tasks={tasksOnDate(calendarTasks, calendarDay)}
+          special={specialDayOn(specialDays, calendarDay)}
+          onBack={() => setCalendarDay(null)}
+          onAddTask={() =>
+            setEditor({
+              mode: "create",
+              presetDraft: {
+                ...emptyDraft,
+                weekdays: weekdayMask(weekdayIndex(calendarDay)),
+              },
+            })
+          }
+          onAddSpecial={() => setSpecialEditorDate(calendarDay)}
+          onRemoveSpecial={(id) => void onRemoveSpecial(id)}
+          onEdit={(task) => setEditor({ mode: "edit", task })}
+          onDelete={(task) => setPendingDelete(task)}
+          onDetail={(task) => void onShowDetail(task)}
+        />
+      )}
+
       {tab === "history" && (
         <section className="list">
           <nav className="tabs subtabs" aria-label={s.historyFilterLabel}>
@@ -444,6 +566,7 @@ export default function App() {
         <TaskEditor
           mode={editor.mode}
           task={editor.task}
+          presetDraft={editor.presetDraft}
           onClose={() => setEditor(null)}
           onSave={(draft) => void onSave(draft, editor.task?.id)}
         />
@@ -463,6 +586,14 @@ export default function App() {
         <DetailDialog task={detailTask} onClose={() => setDetailTask(null)} />
       )}
 
+      {specialEditorDate && (
+        <SpecialDayEditor
+          date={specialEditorDate}
+          onClose={() => setSpecialEditorDate(null)}
+          onSave={(draft) => void onSaveSpecial(draft)}
+        />
+      )}
+
       {settingsOpen && settings && (
         <SettingsDialog
           settings={settings}
@@ -474,6 +605,415 @@ export default function App() {
         />
       )}
     </main>
+  );
+}
+
+function CalendarYearView({
+  year,
+  tasks,
+  specialDays,
+  onPrevYear,
+  onNextYear,
+  onSelectMonth,
+}: {
+  year: number;
+  tasks: Task[];
+  specialDays: SpecialDay[];
+  onPrevYear: () => void;
+  onNextYear: () => void;
+  onSelectMonth: (month: number) => void;
+}) {
+  const s = t();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  if (tasks.length === 0 && specialDays.length === 0) {
+    return (
+      <section className="calendar">
+        <YearNav
+          year={year}
+          onPrevYear={onPrevYear}
+          onNextYear={onNextYear}
+        />
+        <section className="empty">
+          <h2>{s.calendarEmptyTitle}</h2>
+          <p>{s.calendarEmptyBody}</p>
+        </section>
+      </section>
+    );
+  }
+
+  return (
+    <section className="calendar">
+      <YearNav year={year} onPrevYear={onPrevYear} onNextYear={onNextYear} />
+      {[0, 1, 2, 3].map((quarter) => (
+        <div className="quarter" key={quarter}>
+          <p className="quarter-label">{s.quarter(quarter + 1)}</p>
+          <div className="month-grid">
+            {[0, 1, 2].map((offset) => {
+              const month = quarter * 3 + offset + 1;
+              const summary = summarizeMonth(tasks, year, month);
+              const isCurrent = year === currentYear && month === currentMonth;
+              const hasSpecial = monthHasSpecialDay(specialDays, year, month);
+              return (
+                <button
+                  type="button"
+                  key={month}
+                  className={`month-card ${isCurrent ? "current" : ""}`}
+                  onClick={() => onSelectMonth(month)}
+                >
+                  <span className="month-name">
+                    {s.months[month - 1]}
+                    {hasSpecial && (
+                      <span className="special-dot" aria-label={s.specialDay} />
+                    )}
+                  </span>
+                  {summary.taskCount > 0 ? (
+                    <span className="month-stats">
+                      <strong>{s.monthTaskCount(summary.taskCount)}</strong>
+                      <small>{s.monthActiveDays(summary.activeDays)}</small>
+                    </span>
+                  ) : (
+                    <span className="month-stats muted">
+                      <small>{s.monthNoTasks}</small>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function YearNav({
+  year,
+  onPrevYear,
+  onNextYear,
+}: {
+  year: number;
+  onPrevYear: () => void;
+  onNextYear: () => void;
+}) {
+  const s = t();
+  return (
+    <div className="year-nav">
+      <button type="button" aria-label={s.prevYear} onClick={onPrevYear}>
+        ‹
+      </button>
+      <strong>{year}</strong>
+      <button type="button" aria-label={s.nextYear} onClick={onNextYear}>
+        ›
+      </button>
+    </div>
+  );
+}
+
+function CalendarMonthView({
+  year,
+  month,
+  tasks,
+  specialDays,
+  onBack,
+  onSelectDay,
+  onEdit,
+  onDelete,
+  onDetail,
+}: {
+  year: number;
+  month: number;
+  tasks: Task[];
+  specialDays: SpecialDay[];
+  onBack: () => void;
+  onSelectDay: (date: string) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onDetail: (task: Task) => void;
+}) {
+  const s = t();
+  const cells = monthGrid(year, month);
+  const monthTasks = tasksInMonth(tasks, year, month);
+  const todayIso = todayLocal();
+
+  return (
+    <section className="calendar month-view">
+      <div className="month-toolbar">
+        <button type="button" className="back-btn" onClick={onBack}>
+          ‹ {s.back}
+        </button>
+      </div>
+
+      <div className="day-grid">
+        {s.weekdays.map((label) => (
+          <div className="day-head" key={label}>
+            {label}
+          </div>
+        ))}
+        {cells.map((cell, index) => {
+          if (cell.date == null) {
+            return <div className="day-cell empty" key={`pad-${index}`} />;
+          }
+          const cellDate = cell.date;
+          const dayTasks = tasksOnDate(tasks, cellDate);
+          const isToday = cellDate === todayIso;
+          const special = specialDayOn(specialDays, cellDate);
+          const shown = dayTasks.slice(0, 3);
+          const extra = dayTasks.length - shown.length;
+          return (
+            <button
+              type="button"
+              className={`day-cell ${isToday ? "today" : ""} ${special ? "special" : ""}`}
+              key={cellDate}
+              onClick={() => onSelectDay(cellDate)}
+            >
+              <span className="day-num">{cell.day}</span>
+              {special && <span className="special-chip">{special.title}</span>}
+              <div className="day-tasks">
+                {shown.map((task) => (
+                  <span
+                    className={`day-task priority-${task.priority}`}
+                    key={task.id}
+                    title={task.title}
+                  >
+                    {task.title}
+                  </span>
+                ))}
+                {extra > 0 && <span className="day-more">{s.moreTasks(extra)}</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <section className="list month-list">
+        <h2>{s.monthListTitle}</h2>
+        {monthTasks.length === 0 ? (
+          <section className="empty">
+            <h2>{s.monthEmptyTitle}</h2>
+            <p>{s.monthEmptyBody}</p>
+          </section>
+        ) : (
+          monthTasks.map((task) => (
+            <CalendarTaskRow
+              key={task.id}
+              task={task}
+              onEdit={() => onEdit(task)}
+              onDelete={() => onDelete(task)}
+              onDetail={() => onDetail(task)}
+            />
+          ))
+        )}
+      </section>
+    </section>
+  );
+}
+
+/** Chuỗi bitmask 7 ký tự chỉ bật đúng 1 ngày trong tuần (Mon=0..Sun=6). */
+function weekdayMask(index: number): string {
+  return Array.from({ length: 7 }, (_, i) => (i === index ? "1" : "0")).join("");
+}
+
+function CalendarDayView({
+  date,
+  tasks,
+  special,
+  onBack,
+  onAddTask,
+  onAddSpecial,
+  onRemoveSpecial,
+  onEdit,
+  onDelete,
+  onDetail,
+}: {
+  date: string;
+  tasks: Task[];
+  special: SpecialDay | null;
+  onBack: () => void;
+  onAddTask: () => void;
+  onAddSpecial: () => void;
+  onRemoveSpecial: (id: number) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onDetail: (task: Task) => void;
+}) {
+  const s = t();
+  // Sắp theo giờ để xem lịch trình trong ngày: việc có giờ lên trước, theo giờ tăng dần.
+  const ordered = [...tasks].sort((a, b) => {
+    if (a.dueTime && b.dueTime) return a.dueTime.localeCompare(b.dueTime);
+    if (a.dueTime) return -1;
+    if (b.dueTime) return 1;
+    return b.priority - a.priority;
+  });
+
+  return (
+    <section className="calendar day-view">
+      <div className="month-toolbar">
+        <button type="button" className="back-btn" onClick={onBack}>
+          ‹ {s.back}
+        </button>
+        {special ? (
+          <button
+            type="button"
+            className="special-toggle on"
+            onClick={() => onRemoveSpecial(special.id)}
+          >
+            {s.removeSpecial}
+          </button>
+        ) : (
+          <button type="button" className="special-toggle" onClick={onAddSpecial}>
+            {s.markSpecial}
+          </button>
+        )}
+      </div>
+
+      <h2 className="day-title">{formatLongDate(date)}</h2>
+
+      {special && (
+        <div className="special-banner">
+          <span className="special-dot" aria-hidden="true" />
+          <strong>{special.title}</strong>
+        </div>
+      )}
+
+      <div className="day-actions">
+        <button type="button" className="add-day-task" onClick={onAddTask}>
+          + {s.addTaskThisDay}
+        </button>
+      </div>
+
+      <section className="list">
+        {ordered.length === 0 ? (
+          <section className="empty">
+            <h2>{s.dayEmptyTitle}</h2>
+            <p>{s.dayEmptyBody}</p>
+          </section>
+        ) : (
+          ordered.map((task) => (
+            <CalendarTaskRow
+              key={task.id}
+              task={task}
+              onEdit={() => onEdit(task)}
+              onDelete={() => onDelete(task)}
+              onDetail={() => onDetail(task)}
+            />
+          ))
+        )}
+      </section>
+    </section>
+  );
+}
+
+function SpecialDayEditor({
+  date,
+  onClose,
+  onSave,
+}: {
+  date: string;
+  onClose: () => void;
+  onSave: (draft: SpecialDayDraft) => void;
+}) {
+  const s = t();
+  const [title, setTitle] = useState("");
+  const [yearly, setYearly] = useState(true);
+
+  return (
+    <div className="overlay" role="presentation" onClick={onClose}>
+      <form
+        className="sheet"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!title.trim()) return;
+          onSave({ title: title.trim(), onDate: date, yearly });
+        }}
+      >
+        <h2>{s.specialEditorTitle}</h2>
+        <p>{formatLongDate(date)}</p>
+        <label>
+          {s.specialNameLabel}
+          <input
+            autoFocus
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder={s.specialNamePlaceholder}
+            required
+          />
+        </label>
+        <label className="switch-row">
+          <span>
+            <strong>{s.specialYearly}</strong>
+            <small>{s.specialYearlyHint}</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={yearly}
+            onChange={(event) => setYearly(event.target.checked)}
+          />
+        </label>
+        <div className="sheet-actions">
+          <button type="button" className="ghost" onClick={onClose}>
+            {s.cancel}
+          </button>
+          <button type="submit">{s.save}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CalendarTaskRow({
+  task,
+  onEdit,
+  onDelete,
+  onDetail,
+}: {
+  task: Task;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDetail: () => void;
+}) {
+  const s = t();
+  const weekdayLabel = formatWeekdays(task.weekdays);
+
+  return (
+    <article className={`task priority-${task.priority}`}>
+      <div className="history-mark" aria-hidden="true" />
+      <div className="task-body">
+        <div className="task-title-row">
+          <h3>{task.title}</h3>
+          <span className="badge">{s.priority[task.priority]}</span>
+        </div>
+        {(task.dueTime || weekdayLabel || task.remainingDays != null) && (
+          <p className="meta">
+            {task.dueTime && <span className="time">{task.dueTime}</span>}
+            <span>{weekdayLabel ?? s.detailEveryDay}</span>
+            {task.remainingDays != null && (
+              <span>
+                {s.daysLeft(
+                  task.remainingDays,
+                  task.durationDays ?? task.remainingDays,
+                )}
+              </span>
+            )}
+          </p>
+        )}
+        {task.notes && <p>{task.notes}</p>}
+      </div>
+      <div className="task-actions">
+        <button type="button" onClick={onDetail}>
+          {s.detail}
+        </button>
+        <button type="button" onClick={onEdit}>
+          {s.edit}
+        </button>
+        <button type="button" className="danger" onClick={onDelete}>
+          {s.delete}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -589,11 +1129,13 @@ function HistoryRow({
 function TaskEditor({
   mode,
   task,
+  presetDraft,
   onClose,
   onSave,
 }: {
   mode: "create" | "edit";
   task?: Task;
+  presetDraft?: TaskDraft;
   onClose: () => void;
   onSave: (draft: TaskDraft) => void;
 }) {
@@ -607,7 +1149,7 @@ function TaskEditor({
           weekdays: task.weekdays || ALL_WEEKDAYS,
           durationDays: task.durationDays,
         }
-      : emptyDraft,
+      : presetDraft ?? emptyDraft,
   );
   const s = t();
   const hasTime = Boolean(draft.dueTime);

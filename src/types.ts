@@ -38,3 +38,19 @@ export type CompleteResult = {
 };
 
 export const ALL_WEEKDAYS = "1111111";
+
+export type SpecialDay = {
+  id: number;
+  title: string;
+  /** Ngày gốc dạng YYYY-MM-DD. */
+  onDate: string;
+  /** 1 = lặp lại hằng năm (kiểu sinh nhật), 0 = chỉ đúng ngày đó. */
+  yearly: boolean;
+  created_at: string;
+};
+
+export type SpecialDayDraft = {
+  title: string;
+  onDate: string;
+  yearly: boolean;
+};

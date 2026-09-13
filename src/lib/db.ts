@@ -6,6 +6,8 @@ import {
   type ArchiveReason,
   type CompleteResult,
   type Priority,
+  type SpecialDay,
+  type SpecialDayDraft,
   type Task,
   type TaskDraft,
 } from "../types";
@@ -94,6 +96,22 @@ export async function listTodayTasks(date = todayLocal()): Promise<Task[]> {
               t.due_time ASC,
               t.id ASC`,
     [date, dayPos],
+  );
+  return rows.map(toTask);
+}
+
+export async function listActiveTasks(): Promise<Task[]> {
+  const db = await getDb();
+  const rows = await db.select<TaskRow[]>(
+    `SELECT ${TASK_FIELDS}
+     FROM tasks t
+     LEFT JOIN completions c ON c.task_id = t.id AND c.completed_on = $1
+     WHERE t.archived = 0
+     ORDER BY t.priority DESC,
+              CASE WHEN t.due_time IS NULL OR t.due_time = '' THEN 1 ELSE 0 END,
+              t.due_time ASC,
+              t.id ASC`,
+    [todayLocal()],
   );
   return rows.map(toTask);
 }
@@ -297,6 +315,49 @@ export async function markTimeReminded(taskId: number, date: string): Promise<vo
      ON CONFLICT(task_id, reminded_on) DO UPDATE SET last_reminded_at = excluded.last_reminded_at`,
     [taskId, date, nowIso()],
   );
+}
+
+type SpecialDayRow = {
+  id: number;
+  title: string;
+  on_date: string;
+  yearly: number;
+  created_at: string;
+};
+
+function toSpecialDay(row: SpecialDayRow): SpecialDay {
+  return {
+    id: row.id,
+    title: row.title,
+    onDate: row.on_date,
+    yearly: row.yearly === 1,
+    created_at: row.created_at,
+  };
+}
+
+export async function listSpecialDays(): Promise<SpecialDay[]> {
+  const db = await getDb();
+  const rows = await db.select<SpecialDayRow[]>(
+    `SELECT id, title, on_date, yearly, created_at FROM special_days
+     ORDER BY on_date ASC, id ASC`,
+  );
+  return rows.map(toSpecialDay);
+}
+
+export async function addSpecialDay(draft: SpecialDayDraft): Promise<void> {
+  const title = draft.title.trim();
+  if (!title) return;
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO special_days (title, on_date, yearly, created_at)
+     VALUES ($1, $2, $3, $4)`,
+    [title, draft.onDate, draft.yearly ? 1 : 0, nowIso()],
+  );
+}
+
+export async function deleteSpecialDay(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute(`DELETE FROM special_days WHERE id = $1`, [id]);
 }
 
 export async function getSetting(key: string): Promise<string | null> {

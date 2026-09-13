@@ -222,6 +222,18 @@ pub fn run() {
         description: "add_last_reminded_at",
         sql: "ALTER TABLE time_reminders ADD COLUMN last_reminded_at TEXT;",
         kind: MigrationKind::Up,
+    },
+    Migration {
+        version: 11,
+        description: "create_special_days",
+        sql: "CREATE TABLE IF NOT EXISTS special_days (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                on_date TEXT NOT NULL,
+                yearly INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            );",
+        kind: MigrationKind::Up,
     }];
 
     tauri::Builder::default()
