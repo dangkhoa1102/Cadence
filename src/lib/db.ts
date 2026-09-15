@@ -35,7 +35,10 @@ let dbPromise: Promise<Database> | null = null;
 
 function getDb(): Promise<Database> {
   if (!dbPromise) {
-    dbPromise = Database.load("sqlite:cadence.db");
+    dbPromise = Database.load("sqlite:cadence.db").catch((err) => {
+      dbPromise = null;
+      throw err;
+    });
   }
   return dbPromise;
 }
