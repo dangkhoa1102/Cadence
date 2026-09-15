@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ArchiveReason, Priority, Task, TaskDraft } from "./types";
 import { ALL_WEEKDAYS } from "./types";
 import {
@@ -64,7 +64,7 @@ import {
   type UpdateInfo,
 } from "./lib/update";
 import { TourOverlay } from "./TourOverlay";
-import { loadVersionHistory, type VersionEntry } from "./lib/changelog";
+import { loadVersionHistory, parseReleaseNotes, type VersionEntry } from "./lib/changelog";
 import { TOUR_STEPS, type MainTab, type TourStep } from "./lib/tour";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
@@ -434,7 +434,7 @@ export default function App() {
   const s = t();
 
   return (
-    <main className="app">
+    <main className={tab === "updates" && releaseVersion ? "app app-fill" : "app"}>
       <header className="hero">
         <div>
           <p className="eyebrow">{s.appName}</p>
@@ -799,6 +799,70 @@ export default function App() {
   );
 }
 
+function renderNoteText(text: string): ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, index) => {
+    const bold = part.match(/^\*\*(.+)\*\*$/);
+    if (bold) {
+      return <strong key={index}>{bold[1]}</strong>;
+    }
+    const code = part.match(/^`(.+)`$/);
+    if (code) {
+      return <code key={index}>{code[1]}</code>;
+    }
+    return part;
+  });
+}
+
+function ReleaseNotes({
+  notes,
+  empty,
+  className,
+  title,
+}: {
+  notes: string;
+  empty: string;
+  className: string;
+  title?: string;
+}) {
+  const trimmed = notes.trim();
+  const blocks = trimmed ? parseReleaseNotes(trimmed) : [];
+
+  return (
+    <div className={className}>
+      {title && (
+        <p className="note-heading">
+          <span>{title}</span>
+        </p>
+      )}
+      {!trimmed && empty}
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          return (
+            <p key={index} className="note-heading">
+              <span>{renderNoteText(block.text)}</span>
+            </p>
+          );
+        }
+        if (block.type === "list") {
+          return (
+            <ul key={index} className="note-list">
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex}>{renderNoteText(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={index} className="note-para">
+            {renderNoteText(block.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function UpdatesView({
   loading,
   error,
@@ -836,7 +900,11 @@ function UpdatesView({
           {detail.publishedAt && (
             <p className="hint">{detail.publishedAt.slice(0, 10)}</p>
           )}
-          <pre className="update-notes">{detail.notes.trim() || s.updatesNoNotes}</pre>
+          <ReleaseNotes
+            className="release-notes"
+            notes={detail.notes}
+            empty={s.updatesNoNotes}
+          />
         </article>
       </section>
     );
@@ -1821,11 +1889,12 @@ function UpdateDialog({
             <p>{s.updateBody(info.current, info.latest)}</p>
             <p className="hint">{s.updateSkipHint}</p>
             {info.notes.trim() && (
-              <pre className="update-notes">
-                <strong>{s.updateNotes}</strong>
-                {"\n"}
-                {info.notes.trim()}
-              </pre>
+              <ReleaseNotes
+                className="update-notes"
+                notes={info.notes}
+                empty=""
+                title={s.updateNotes}
+              />
             )}
             <div className="sheet-actions">
               <button type="button" className="ghost" onClick={() => onSkip(info.latest)}>

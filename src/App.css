@@ -90,6 +90,24 @@ textarea {
   padding: 20px 20px 96px;
 }
 
+.app-fill {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+  padding-bottom: 20px;
+  overflow: hidden;
+}
+
+.app-fill .hero {
+  flex-shrink: 0;
+}
+
+.app-fill .updates {
+  flex: 1;
+  min-height: 0;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -994,23 +1012,66 @@ button.day-cell:active {
 }
 
 .update-notes,
-.update-error {
+.update-error,
+.release-notes {
   margin: 16px 0 0;
-  padding: 12px 14px;
+  padding: 16px 18px;
   border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   font-family: inherit;
   font-size: 13px;
   font-weight: 400;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  max-height: 220px;
+  line-height: 1.5;
   overflow: auto;
+}
+
+.update-notes,
+.update-error {
+  max-height: 220px;
 }
 
 .update-error {
   color: var(--high);
+  white-space: pre-wrap;
+}
+
+.release-notes {
+  flex: 1;
+  min-height: 0;
+  margin-top: 12px;
+}
+
+.note-heading {
+  margin: 0 0 8px;
+}
+
+.note-heading span {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+}
+
+.note-list li + li {
+  margin-top: 6px;
+}
+
+.note-para {
+  margin: 0 0 12px;
+}
+
+.release-notes > :last-child,
+.update-notes > :last-child {
+  margin-bottom: 0;
 }
 
 .update-progress {
@@ -1075,6 +1136,20 @@ button.day-cell:active {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.update-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.updates .month-toolbar,
+.update-detail .eyebrow,
+.update-detail h2,
+.update-detail .hint {
+  flex-shrink: 0;
 }
 
 .update-list {
