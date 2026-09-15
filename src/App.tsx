@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ArchiveReason, Priority, Task, TaskDraft } from "./types";
 import { ALL_WEEKDAYS } from "./types";
 import {
@@ -51,10 +51,23 @@ import {
   type AppSettings,
   type Theme,
 } from "./lib/settings";
+import {
+  cancelAppUpdate,
+  clearUpdateOutcome,
+  listenUpdateProgress,
+  markUpdateFailed,
+  markUpdatePending,
+  resolveUpdateGate,
+  skipVersion,
+  startAppUpdate,
+  type UpdateGate,
+  type UpdateInfo,
+} from "./lib/update";
+import { TourOverlay } from "./TourOverlay";
+import { loadVersionHistory, type VersionEntry } from "./lib/changelog";
+import { TOUR_STEPS, type MainTab, type TourStep } from "./lib/tour";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
-
-type MainTab = "today" | "calendar" | "history";
 
 function describeError(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -97,6 +110,12 @@ export default function App() {
   const [calendarDay, setCalendarDay] = useState<string | null>(null);
   const [specialDays, setSpecialDays] = useState<SpecialDay[]>([]);
   const [specialEditorDate, setSpecialEditorDate] = useState<string | null>(null);
+  const [updateGate, setUpdateGate] = useState<UpdateGate | null>(null);
+  const [tourIndex, setTourIndex] = useState<number | null>(null);
+  const [releases, setReleases] = useState<VersionEntry[]>([]);
+  const [releasesError, setReleasesError] = useState<string | null>(null);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releaseVersion, setReleaseVersion] = useState<string | null>(null);
 
   async function reloadToday(nextDate = todayLocal()) {
     setDate(nextDate);
@@ -137,7 +156,18 @@ export default function App() {
         setDate(todayLocal());
 
         const window = getCurrentWindow();
-        if (!loadedSettings.showOnStartup) {
+        let updateUi: UpdateGate | null = null;
+        try {
+          updateUi = await resolveUpdateGate();
+        } catch {
+          updateUi = null;
+        }
+        if (cancelled) return;
+        if (updateUi) {
+          await window.show();
+          await window.setFocus();
+          setUpdateGate(updateUi);
+        } else if (!loadedSettings.showOnStartup) {
           await window.hide();
         } else {
           await window.show();
@@ -199,6 +229,55 @@ export default function App() {
       void reloadCalendar().catch((err) => setError(describeError(err)));
     }
   }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "updates") return;
+    let cancelled = false;
+    setReleasesLoading(true);
+    void loadVersionHistory()
+      .then((rows) => {
+        if (cancelled) return;
+        setReleases(rows);
+        setReleasesError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setReleasesError(describeError(err));
+      })
+      .finally(() => {
+        if (!cancelled) setReleasesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, settings?.language]);
+
+  useEffect(() => {
+    if (tourIndex == null) return;
+    const step: TourStep = TOUR_STEPS[tourIndex];
+    setTab(step.tab);
+    setSettingsOpen(Boolean(step.settings));
+    if (step.editor) {
+      setEditor({ mode: "create" });
+    } else {
+      setEditor(null);
+    }
+    if (step.tab === "calendar") {
+      const stamp = new Date();
+      if (step.calendar === "year") {
+        setCalendarMonth(null);
+        setCalendarDay(null);
+      } else if (step.calendar === "month") {
+        setCalendarYear(stamp.getFullYear());
+        setCalendarMonth(stamp.getMonth() + 1);
+        setCalendarDay(null);
+      } else if (step.calendar === "day") {
+        setCalendarYear(stamp.getFullYear());
+        setCalendarMonth(stamp.getMonth() + 1);
+        setCalendarDay(todayLocal());
+      }
+    }
+    if (step.tab !== "updates") setReleaseVersion(null);
+  }, [tourIndex]);
 
   const remaining = useMemo(
     () => tasks.filter((task) => !task.completed).length,
@@ -297,6 +376,38 @@ export default function App() {
     }
   }
 
+  async function onUpdateNow(info: UpdateInfo) {
+    if (!info.downloadUrl) {
+      const reason = "no_installer|Bản phát hành không có file cài đặt Windows.";
+      await markUpdateFailed(reason);
+      setUpdateGate({ kind: "failed", info, reason });
+      return;
+    }
+    await markUpdatePending(info.latest);
+    setUpdateGate({ kind: "downloading", info, received: 0, total: null });
+    try {
+      await startAppUpdate(info.downloadUrl, info.latest);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      if (raw.startsWith("cancelled|")) {
+        setUpdateGate({ kind: "available", info });
+        return;
+      }
+      await markUpdateFailed(raw);
+      setUpdateGate({ kind: "failed", info, reason: raw });
+    }
+  }
+
+  async function onSkipUpdate(version: string) {
+    await skipVersion(version);
+    setUpdateGate(null);
+  }
+
+  async function onConfirmUpdateSuccess() {
+    await clearUpdateOutcome();
+    setUpdateGate(null);
+  }
+
   async function onAutostartChange(enabled: boolean) {
     await setAutostartEnabled(enabled);
     setSettings((current) => (current ? { ...current, autostart: enabled } : current));
@@ -334,11 +445,15 @@ export default function App() {
                 ? calendarMonth == null
                   ? String(calendarYear)
                   : `${s.months[calendarMonth - 1]} ${calendarYear}`
-                : s.tabHistory}
+                : tab === "updates"
+                  ? releaseVersion
+                    ? `Cadence ${releaseVersion}`
+                    : s.tabUpdates
+                  : s.tabHistory}
           </h1>
         </div>
         <div className="hero-tools">
-          <nav className="tabs" aria-label={s.navLabel}>
+          <nav className="tabs" aria-label={s.navLabel} data-tour="tour-tabs">
             <button
               type="button"
               className={tab === "today" ? "on" : ""}
@@ -360,7 +475,25 @@ export default function App() {
             >
               {s.tabHistory}
             </button>
+            <button
+              type="button"
+              className={tab === "updates" ? "on" : ""}
+              onClick={() => {
+                setReleaseVersion(null);
+                setTab("updates");
+              }}
+            >
+              {s.tabUpdates}
+            </button>
           </nav>
+          <button
+            className="icon-btn"
+            type="button"
+            aria-label={s.guide}
+            onClick={() => setTourIndex(0)}
+          >
+            <HelpIcon />
+          </button>
           <button
             className="icon-btn"
             type="button"
@@ -391,7 +524,7 @@ export default function App() {
               </span>
             </section>
           )}
-          <section className="progress-card" aria-live="polite">
+          <section className="progress-card" aria-live="polite" data-tour="tour-progress">
             <div>
               <strong>{remaining}</strong>
               <span>{s.remainingToday}</span>
@@ -416,14 +549,14 @@ export default function App() {
           {loading && <p className="banner">{s.loading}</p>}
 
           {!loading && tasks.length === 0 && (
-            <section className="empty">
+            <section className="empty" data-tour="tour-tasks">
               <h2>{hasOtherTasks ? s.emptyTodayTitle : s.emptyAllTitle}</h2>
               <p>{hasOtherTasks ? s.emptyTodayBody : s.emptyAllBody}</p>
             </section>
           )}
 
           {openTasks.length > 0 && (
-            <section className="list">
+            <section className="list" data-tour="tour-tasks">
               <h2>{s.sectionOpen}</h2>
               {openTasks.map((task) => (
                 <TaskRow
@@ -504,9 +637,29 @@ export default function App() {
         />
       )}
 
+      {tab === "updates" && (
+        <UpdatesView
+          loading={releasesLoading}
+          error={releasesError}
+          releases={releases}
+          selected={releaseVersion}
+          onSelect={setReleaseVersion}
+          onRetry={() => {
+            setReleasesLoading(true);
+            void loadVersionHistory()
+              .then((rows) => {
+                setReleases(rows);
+                setReleasesError(null);
+              })
+              .catch((err) => setReleasesError(describeError(err)))
+              .finally(() => setReleasesLoading(false));
+          }}
+        />
+      )}
+
       {tab === "history" && (
         <section className="list">
-          <nav className="tabs subtabs" aria-label={s.historyFilterLabel}>
+          <nav className="tabs subtabs" aria-label={s.historyFilterLabel} data-tour="tour-history">
             <button
               type="button"
               className={historyFilter === "completed" ? "on" : ""}
@@ -556,6 +709,7 @@ export default function App() {
         <button
           className="fab"
           type="button"
+          data-tour="tour-add"
           onClick={() => setEditor({ mode: "create" })}
         >
           {s.addTask}
@@ -604,7 +758,127 @@ export default function App() {
           onLanguageChange={(value) => void onLanguageChange(value)}
         />
       )}
+
+      {updateGate && (
+        <UpdateDialog
+          gate={updateGate}
+          onProgress={(received, total) =>
+            setUpdateGate((prev) =>
+              prev?.kind === "downloading" ? { ...prev, received, total } : prev,
+            )
+          }
+          onUpdate={(info) => void onUpdateNow(info)}
+          onSkip={(version) => void onSkipUpdate(version)}
+          onCancelDownload={() => void cancelAppUpdate()}
+          onConfirmSuccess={() => void onConfirmUpdateSuccess()}
+        />
+      )}
+
+      {tourIndex != null && TOUR_STEPS[tourIndex] && (
+        <TourOverlay
+          stepIndex={tourIndex}
+          step={TOUR_STEPS[tourIndex]}
+          onPrev={() => setTourIndex((i) => (i == null ? 0 : Math.max(0, i - 1)))}
+          onNext={() => {
+            if (tourIndex >= TOUR_STEPS.length - 1) {
+              setTourIndex(null);
+              setSettingsOpen(false);
+              setEditor(null);
+              return;
+            }
+            setTourIndex(tourIndex + 1);
+          }}
+          onSkip={() => {
+            setTourIndex(null);
+            setSettingsOpen(false);
+            setEditor(null);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function UpdatesView({
+  loading,
+  error,
+  releases,
+  selected,
+  onSelect,
+  onRetry,
+}: {
+  loading: boolean;
+  error: string | null;
+  releases: VersionEntry[];
+  selected: string | null;
+  onSelect: (version: string | null) => void;
+  onRetry: () => void;
+}) {
+  const s = t();
+  const detail = selected
+    ? releases.find((item) => item.version === selected) ?? null
+    : null;
+
+  if (detail) {
+    return (
+      <section className="updates" data-tour="tour-updates">
+        <div className="month-toolbar">
+          <button type="button" className="back-btn" onClick={() => onSelect(null)}>
+            ‹ {s.back}
+          </button>
+        </div>
+        <article className="update-detail">
+          <p className="eyebrow">{s.updatesDetailTitle}</p>
+          <h2>
+            {detail.name}
+            {detail.isCurrent && <span className="update-badge">{s.updatesCurrent}</span>}
+          </h2>
+          {detail.publishedAt && (
+            <p className="hint">{detail.publishedAt.slice(0, 10)}</p>
+          )}
+          <pre className="update-notes">{detail.notes.trim() || s.updatesNoNotes}</pre>
+        </article>
+      </section>
+    );
+  }
+
+  return (
+    <section className="updates" data-tour="tour-updates">
+      {loading && <p className="banner">{s.loading}</p>}
+      {error && (
+        <p className="banner error">
+          {error}{" "}
+          <button type="button" className="ghost" onClick={onRetry}>
+            {s.updatesRetry}
+          </button>
+        </p>
+      )}
+      {releases.length === 0 && !loading && (
+        <section className="empty">
+          <h2>{s.updatesEmptyTitle}</h2>
+          <p>{s.updatesEmptyBody}</p>
+          <button type="button" onClick={onRetry}>
+            {s.updatesRetry}
+          </button>
+        </section>
+      )}
+      <div className="update-list">
+        {releases.map((item) => (
+          <button
+            type="button"
+            className="update-row"
+            key={item.version}
+            onClick={() => onSelect(item.version)}
+          >
+            <span>
+              <strong>Cadence {item.version}</strong>
+              <small>{item.name}</small>
+            </span>
+            {item.isCurrent && <span className="update-badge">{s.updatesCurrent}</span>}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -630,7 +904,7 @@ function CalendarYearView({
 
   if (tasks.length === 0 && specialDays.length === 0) {
     return (
-      <section className="calendar">
+      <section className="calendar" data-tour="tour-calendar">
         <YearNav
           year={year}
           onPrevYear={onPrevYear}
@@ -645,7 +919,7 @@ function CalendarYearView({
   }
 
   return (
-    <section className="calendar">
+    <section className="calendar" data-tour="tour-calendar">
       <YearNav year={year} onPrevYear={onPrevYear} onNextYear={onNextYear} />
       {[0, 1, 2, 3].map((quarter) => (
         <div className="quarter" key={quarter}>
@@ -746,7 +1020,7 @@ function CalendarMonthView({
         </button>
       </div>
 
-      <div className="day-grid">
+      <div className="day-grid" data-tour="tour-month-grid">
         {s.weekdays.map((label) => (
           <div className="day-head" key={label}>
             {label}
@@ -849,7 +1123,7 @@ function CalendarDayView({
   });
 
   return (
-    <section className="calendar day-view">
+    <section className="calendar day-view" data-tour="tour-day">
       <div className="month-toolbar">
         <button type="button" className="back-btn" onClick={onBack}>
           ‹ {s.back}
@@ -1159,6 +1433,7 @@ function TaskEditor({
     <div className="overlay" role="presentation" onClick={onClose}>
       <form
         className="sheet"
+        data-tour="tour-editor"
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => {
           event.preventDefault();
@@ -1394,7 +1669,11 @@ function SettingsDialog({
 
   return (
     <div className="overlay" role="presentation" onClick={onClose}>
-      <section className="sheet" onClick={(event) => event.stopPropagation()}>
+      <section
+        className="sheet"
+        data-tour="tour-settings"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h2>{s.settings}</h2>
         <fieldset>
           <legend>{s.settingsLanguage}</legend>
@@ -1469,6 +1748,153 @@ function SettingsDialog({
   );
 }
 
+function updateErrorText(reason: string): string {
+  const s = t();
+  const [code, ...rest] = reason.split("|");
+  const detail = rest.join("|").trim();
+  const mapped: Record<string, string> = {
+    network: s.updateErrorNetwork,
+    github: s.updateErrorGithub,
+    no_installer: s.updateErrorNoInstaller,
+    download: s.updateErrorDownload,
+    spawn: s.updateErrorSpawn,
+    not_applied: s.updateErrorNotApplied,
+    cancelled: s.updateErrorCancelled,
+    io: s.updateErrorIo,
+  };
+  const head = mapped[code] ?? s.updateErrorUnknown;
+  return detail ? `${head}\n${detail}` : head;
+}
+
+function UpdateDialog({
+  gate,
+  onProgress,
+  onUpdate,
+  onSkip,
+  onCancelDownload,
+  onConfirmSuccess,
+}: {
+  gate: UpdateGate;
+  onProgress: (received: number, total: number | null) => void;
+  onUpdate: (info: UpdateInfo) => void;
+  onSkip: (version: string) => void;
+  onCancelDownload: () => void;
+  onConfirmSuccess: () => void;
+}) {
+  const s = t();
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
+
+  useEffect(() => {
+    if (gate.kind !== "downloading") return;
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void listenUpdateProgress((progress) => {
+      if (!cancelled) onProgressRef.current(progress.received, progress.total);
+    }).then((unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [gate.kind]);
+
+  const info =
+    gate.kind === "success"
+      ? null
+      : gate.info;
+  const percent =
+    gate.kind === "downloading" && gate.total && gate.total > 0
+      ? Math.min(100, Math.round((gate.received / gate.total) * 100))
+      : gate.kind === "downloading"
+        ? null
+        : 100;
+
+  return (
+    <div className="overlay update-overlay" role="dialog" aria-modal="true">
+      <section className="sheet update-sheet">
+        {gate.kind === "available" && info && (
+          <>
+            <h2>{s.updateTitle}</h2>
+            <p>{s.updateBody(info.current, info.latest)}</p>
+            <p className="hint">{s.updateSkipHint}</p>
+            {info.notes.trim() && (
+              <pre className="update-notes">
+                <strong>{s.updateNotes}</strong>
+                {"\n"}
+                {info.notes.trim()}
+              </pre>
+            )}
+            <div className="sheet-actions">
+              <button type="button" className="ghost" onClick={() => onSkip(info.latest)}>
+                {s.updateSkip}
+              </button>
+              <button type="button" onClick={() => onUpdate(info)}>
+                {s.updateNow}
+              </button>
+            </div>
+          </>
+        )}
+
+        {gate.kind === "downloading" && info && (
+          <>
+            <h2>{s.updateDownloading}</h2>
+            <p>{s.updateBody(info.current, info.latest)}</p>
+            <div className="update-progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? 0}>
+              <span style={{ width: `${percent ?? 8}%` }} />
+            </div>
+            <p className="hint">
+              {percent == null ? "…" : s.updatePercent(percent)}
+            </p>
+            <div className="sheet-actions">
+              <button type="button" className="ghost" onClick={onCancelDownload}>
+                {s.updateCancelDownload}
+              </button>
+            </div>
+          </>
+        )}
+
+        {gate.kind === "installing" && info && (
+          <>
+            <h2>{s.updateInstalling}</h2>
+            <p>{s.updateBody(info.current, info.latest)}</p>
+          </>
+        )}
+
+        {gate.kind === "success" && (
+          <>
+            <h2>{s.updateSuccessTitle}</h2>
+            <p>{s.updateSuccessBody(gate.latest)}</p>
+            <div className="sheet-actions">
+              <button type="button" onClick={onConfirmSuccess}>
+                {s.updateSuccessConfirm}
+              </button>
+            </div>
+          </>
+        )}
+
+        {gate.kind === "failed" && info && (
+          <>
+            <h2>{s.updateFailedTitle}</h2>
+            <p>{s.updateFailedHint}</p>
+            <pre className="update-error">{updateErrorText(gate.reason)}</pre>
+            <div className="sheet-actions">
+              <button type="button" className="ghost" onClick={() => onSkip(info.latest)}>
+                {s.updateGiveUp}
+              </button>
+              <button type="button" onClick={() => onUpdate(info)}>
+                {s.updateRetry}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function ConfirmDialog({
   title,
   body,
@@ -1497,6 +1923,21 @@ function ConfirmDialog({
         </div>
       </section>
     </div>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M9.6 9.4c.4-1.4 1.6-2.2 3-2.2 1.5 0 2.7.9 2.7 2.3 0 1.5-1.1 2-1.9 2.5-.8.5-1.1 1-1.1 1.8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12.3" cy="17" r="1" fill="currentColor" />
+    </svg>
   );
 }
 

@@ -124,6 +124,7 @@ textarea {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 4px;
   border-radius: 14px;
@@ -447,6 +448,7 @@ textarea {
   place-items: center;
   padding: 24px;
   background: var(--overlay);
+  z-index: 20;
 }
 
 .sheet {
@@ -985,4 +987,146 @@ button.day-cell:active {
   .month-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.update-overlay {
+  z-index: 40;
+}
+
+.update-notes,
+.update-error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.update-error {
+  color: var(--high);
+}
+
+.update-progress {
+  margin-top: 18px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.tour-spot {
+  position: fixed;
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px var(--overlay);
+  outline: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.tour-card {
+  position: fixed;
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px 22px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  z-index: 51;
+}
+
+.tour-count {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tour-card h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.tour-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.updates {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.update-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.update-row:hover {
+  border-color: var(--accent);
+}
+
+.update-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.update-row small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.update-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.update-detail h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
 }

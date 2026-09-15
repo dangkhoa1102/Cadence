@@ -11,6 +11,8 @@ const vi = {
   tabToday: "Hôm nay",
   tabCalendar: "Lịch",
   tabHistory: "Lịch sử",
+  tabUpdates: "Phiên bản",
+  guide: "Hướng dẫn",
   settings: "Cài đặt",
   close: "Đóng",
   detail: "Chi tiết",
@@ -158,6 +160,100 @@ const vi = {
     "Đóng cửa sổ sẽ ẩn app xuống khay hệ thống. Chọn “Thoát · Quit” trên icon khay để tắt hẳn. Windows sẽ báo khi đến giờ, còn ngày, hoặc việc bị xóa.",
   settingsDone: "Xong",
 
+  updateTitle: "Có phiên bản mới",
+  updateBody: (from: string, to: string) =>
+    `Bạn đang dùng Cadence ${from}. Bản ${to} đã sẵn sàng.`,
+  updateNotes: "Có gì mới",
+  updateNow: "Cập nhật ngay",
+  updateSkip: "Để sau, giữ bản hiện tại",
+  updateSkipHint:
+    "Bạn vẫn dùng được app như cũ. Chỉ không có chức năng mới của bản này.",
+  updateDownloading: "Đang tải bản cập nhật…",
+  updateInstalling: "Sắp cài đặt. Cadence sẽ đóng rồi tự mở lại.",
+  updateCancelDownload: "Hủy tải",
+  updateSuccessTitle: "Cập nhật thành công",
+  updateSuccessBody: (version: string) => `Cadence đã lên phiên bản ${version}.`,
+  updateSuccessConfirm: "Đã hiểu",
+  updateFailedTitle: "Cập nhật chưa thành công",
+  updateFailedHint: "Lý do:",
+  updateRetry: "Thử lại",
+  updateGiveUp: "Không cập nhật nữa",
+  updatePercent: (pct: number) => `${pct}%`,
+  updateErrorNetwork: "Không kết nối được máy chủ cập nhật (GitHub).",
+  updateErrorGithub: "GitHub không trả về được bản phát hành.",
+  updateErrorNoInstaller: "Bản phát hành không có file cài đặt Windows.",
+  updateErrorDownload: "Tải file cài đặt thất bại.",
+  updateErrorSpawn: "Không chạy được trình cài đặt.",
+  updateErrorNotApplied:
+    "Đã chạy cài đặt nhưng Cadence vẫn đang ở phiên bản cũ. File app có thể đang bị khóa.",
+  updateErrorCancelled: "Đã hủy tải.",
+  updateErrorIo: "Không ghi được file cập nhật lên máy.",
+  updateErrorUnknown: "Lỗi không xác định.",
+
+  tourSkip: "Bỏ qua",
+  tourBack: "Trước",
+  tourNext: "Tiếp",
+  tourDone: "Xong",
+  tourProgress: (step: number, total: number) => `${step}/${total}`,
+  tourSteps: {
+    welcome: {
+      title: "Chào mừng đến Cadence",
+      body: "Lần lượt từng bước: việc hôm nay, lịch, lịch sử, phiên bản và cài đặt. Bấm Tiếp để bắt đầu.",
+    },
+    tabs: {
+      title: "Các trang chính",
+      body: "Hôm nay là việc trong ngày. Lịch xem cả tháng/năm. Lịch sử giữ việc đã xong hoặc đã xóa. Phiên bản ghi chú từng bản cập nhật.",
+    },
+    today: {
+      title: "Tiến độ hôm nay",
+      body: "Số việc còn lại và thanh tiến độ. Tích xong thì số này giảm. Sang ngày mới, việc lặp sẽ hiện lại.",
+    },
+    tasks: {
+      title: "Danh sách việc",
+      body: "Tích ô tròn để đánh dấu xong. Chi tiết / Sửa / Xóa nằm bên phải mỗi việc.",
+    },
+    add: {
+      title: "Thêm việc",
+      body: "Nút góc dưới bên phải mở form tạo việc mới. Có thể đặt giờ, thứ trong tuần, số ngày và mức ưu tiên.",
+    },
+    editor: {
+      title: "Form thêm / sửa",
+      body: "Tên là bắt buộc. Giờ và số ngày là tùy chọn. Bỏ chọn thứ nào thì việc không hiện ngày đó. Hủy để đóng, không lưu.",
+    },
+    calendar: {
+      title: "Lịch theo năm",
+      body: "Mỗi tháng hiện số việc lặp trong tháng. Chấm vàng là có ngày đặc biệt. Bấm một tháng để xem lưới ngày.",
+    },
+    month: {
+      title: "Lịch theo tháng",
+      body: "Bấm một ngày để xem việc đúng ngày đó, sắp theo giờ. Quay lại để về 12 tháng.",
+    },
+    day: {
+      title: "Chi tiết một ngày",
+      body: "Thêm việc ngay trong ngày này, hoặc đánh dấu ngày đặc biệt (sinh nhật, kỷ niệm) để ô ngày nhấp nháy.",
+    },
+    history: {
+      title: "Lịch sử",
+      body: "Đã hoàn thành: việc đếm ngày đã về 0. Đã xóa: việc bạn xóa tay. Cả hai đều có Chi tiết và Hoàn tác.",
+    },
+    updates: {
+      title: "Phiên bản",
+      body: "Danh sách các bản Cadence. Bấm một bản để đọc ghi chú đầy đủ. Bản đang dùng có nhãn Hiện tại.",
+    },
+    settings: {
+      title: "Cài đặt",
+      body: "Đổi tiếng Việt / English, sáng / tối, mở cùng Windows, và hiện cửa sổ lúc khởi động. Đóng cửa sổ chỉ ẩn xuống khay.",
+    },
+  },
+
+  updatesEmptyTitle: "Chưa lấy được danh sách",
+  updatesEmptyBody:
+    "Cadence vẫn hiện các bản đã biết trên máy. Kiểm tra mạng rồi thử lại để lấy ghi chú từ GitHub.",
+  updatesRetry: "Thử lại",
+  updatesCurrent: "Hiện tại",
+  updatesDetailTitle: "Chi tiết phiên bản",
+  updatesNoNotes: "Chưa có ghi chú cho bản này.",
+
   notifyReminderTitle: "Nhắc việc",
   notifyRemindOne: "Còn 1 việc chưa làm hôm nay. Mở app để kiểm tra.",
   notifyRemindMany: (count: number) =>
@@ -189,6 +285,8 @@ const en: Dict = {
   tabToday: "Today",
   tabCalendar: "Calendar",
   tabHistory: "History",
+  tabUpdates: "Versions",
+  guide: "Guide",
   settings: "Settings",
   close: "Close",
   detail: "Details",
@@ -339,6 +437,100 @@ const en: Dict = {
   settingsTrayHint:
     "Closing the window hides the app in the system tray. Choose “Thoát · Quit” on the tray icon to exit completely. Windows notifies you when a task is due, counts down, or gets deleted.",
   settingsDone: "Done",
+
+  updateTitle: "A new version is available",
+  updateBody: (from: string, to: string) =>
+    `You are on Cadence ${from}. Version ${to} is ready.`,
+  updateNotes: "What's new",
+  updateNow: "Update now",
+  updateSkip: "Skip, keep this version",
+  updateSkipHint:
+    "The app keeps working as it is. You just will not get the new features from this release.",
+  updateDownloading: "Downloading the update…",
+  updateInstalling: "About to install. Cadence will close and reopen.",
+  updateCancelDownload: "Cancel download",
+  updateSuccessTitle: "Update complete",
+  updateSuccessBody: (version: string) => `Cadence is now version ${version}.`,
+  updateSuccessConfirm: "Got it",
+  updateFailedTitle: "Update did not finish",
+  updateFailedHint: "Reason:",
+  updateRetry: "Try again",
+  updateGiveUp: "Don't update",
+  updatePercent: (pct: number) => `${pct}%`,
+  updateErrorNetwork: "Could not reach the update server (GitHub).",
+  updateErrorGithub: "GitHub did not return a release.",
+  updateErrorNoInstaller: "This release has no Windows installer file.",
+  updateErrorDownload: "Could not download the installer.",
+  updateErrorSpawn: "Could not start the installer.",
+  updateErrorNotApplied:
+    "The installer ran, but Cadence is still on the old version. The app file may have been locked.",
+  updateErrorCancelled: "Download cancelled.",
+  updateErrorIo: "Could not write the update file to disk.",
+  updateErrorUnknown: "Unknown error.",
+
+  tourSkip: "Skip",
+  tourBack: "Back",
+  tourNext: "Next",
+  tourDone: "Done",
+  tourProgress: (step: number, total: number) => `${step}/${total}`,
+  tourSteps: {
+    welcome: {
+      title: "Welcome to Cadence",
+      body: "A short walk through today, the calendar, history, versions, and settings. Press Next to begin.",
+    },
+    tabs: {
+      title: "Main pages",
+      body: "Today is the daily list. Calendar covers months and years. History keeps finished or deleted tasks. Versions holds release notes.",
+    },
+    today: {
+      title: "Today's progress",
+      body: "How many tasks are left, plus a progress bar. Checking a task off lowers the count. Repeating tasks come back the next day.",
+    },
+    tasks: {
+      title: "The task list",
+      body: "Tick the circle to mark a task done. Details / Edit / Delete sit on the right of each row.",
+    },
+    add: {
+      title: "Add a task",
+      body: "The button at the bottom right opens the create form. You can set a time, weekdays, a day count, and a priority.",
+    },
+    editor: {
+      title: "Create / edit form",
+      body: "A name is required. Time and day count are optional. Unselect a weekday and the task will not show on that day. Cancel closes without saving.",
+    },
+    calendar: {
+      title: "Year calendar",
+      body: "Each month shows how many repeating tasks land in it. A gold dot means a special day. Tap a month for the day grid.",
+    },
+    month: {
+      title: "Month calendar",
+      body: "Tap a day to see tasks for that date, sorted by time. Back returns to the 12 months.",
+    },
+    day: {
+      title: "A single day",
+      body: "Add a task for this day, or mark it as a special day (birthday, anniversary) so the cell pulses.",
+    },
+    history: {
+      title: "History",
+      body: "Completed: day-count tasks that reached zero. Deleted: tasks you removed. Both have Details and Restore.",
+    },
+    updates: {
+      title: "Versions",
+      body: "Every Cadence release. Tap one for the full notes. The build you are on is labelled Current.",
+    },
+    settings: {
+      title: "Settings",
+      body: "Switch Vietnamese / English, light / dark, start with Windows, and whether the window opens at boot. Closing the window only hides it in the tray.",
+    },
+  },
+
+  updatesEmptyTitle: "Could not refresh the list",
+  updatesEmptyBody:
+    "Cadence still shows the releases it knows about on this PC. Check the network and retry to pull notes from GitHub.",
+  updatesRetry: "Retry",
+  updatesCurrent: "Current",
+  updatesDetailTitle: "Release details",
+  updatesNoNotes: "No notes for this release yet.",
 
   notifyReminderTitle: "Reminders",
   notifyRemindOne: "1 task is still open today. Open the app to check.",

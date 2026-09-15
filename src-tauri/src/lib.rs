@@ -6,7 +6,9 @@ use tauri::{
 };
 use tauri_plugin_sql::{Migration, MigrationKind};
 
-struct ExitAllowed(AtomicBool);
+mod update;
+
+pub(crate) struct ExitAllowed(pub AtomicBool);
 
 #[cfg(windows)]
 mod win_alert {
@@ -251,8 +253,15 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![raise_alert])
+        .invoke_handler(tauri::generate_handler![
+            raise_alert,
+            update::check_for_update,
+            update::list_app_releases,
+            update::start_app_update,
+            update::cancel_app_update,
+        ])
         .manage(ExitAllowed(AtomicBool::new(false)))
+        .manage(update::UpdateCancel(AtomicBool::new(false)))
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 fit_to_work_area(&window);
